@@ -1,0 +1,6 @@
+stealth:
+  rotate_ja3_tls: true
+  spoof_webgl: true
+  evade_datadome: true
+  canvas_noise: random
+  mouse_jitter: fitts_law

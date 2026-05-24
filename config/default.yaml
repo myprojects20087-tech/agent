@@ -1,0 +1,15 @@
+agent:
+  mode: distributed
+  max_retries: 3
+
+brain:
+  type: local
+  model: qwen2-vl-7b
+
+memory:
+  vector_db_host: localhost:6333
+  graph_db_host: bolt://localhost:7687
+
+swarm:
+  default_workers: 5
+  max_workers: 50
