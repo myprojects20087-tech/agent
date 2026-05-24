@@ -3,6 +3,7 @@ import random
 import math
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+from src.brain import BrainProvider
 
 class StateNode(BaseModel):
     state_vector: List[float]
@@ -13,13 +14,19 @@ class StateNode(BaseModel):
     action_taken: Optional[str] = None
 
 class NeuroSymbolicPlanner:
-    def __init__(self, exploration_weight: float = 1.414):
+    def __init__(self, brain: Optional[BrainProvider] = None, exploration_weight: float = 1.414):
+        self.brain = brain
         self.exploration_weight = exploration_weight
         self.root = None
 
     async def generate_plan(self, goal: str, current_state: Dict[str, Any]) -> List[str]:
-        print(f"[NeuroSymbolicPlanner] Decomposing goal via LLM: {goal}")
-        await asyncio.sleep(0.1) # Simulate LLM call
+        print(f"[NeuroSymbolicPlanner] Decomposing goal via Brain: {goal}")
+
+        if self.brain:
+            brain_response = await self.brain.reason(f"Decompose goal into symbolic AST: {goal}", context=current_state)
+            print(f"[NeuroSymbolicPlanner] Brain responded: {brain_response}")
+        else:
+            await asyncio.sleep(0.1) # Simulate
 
         # Build symbolic AST task graph
         task_graph = self._build_symbolic_ast(goal)
@@ -64,6 +71,10 @@ class NeuroSymbolicPlanner:
             curr = curr.children[best_action]
         return trajectory
 
+    def _is_terminal(self, node: StateNode) -> bool:
+        # Dummy terminal check
+        return node.visits > 10
+
     def _select(self, node: StateNode) -> StateNode:
         while node.children:
             node = max(node.children.values(), key=self._uct_score)
@@ -89,6 +100,9 @@ class NeuroSymbolicPlanner:
 
     async def _simulate(self, node: StateNode) -> float:
         # Simulate value network predicting success probability
+        if self.brain:
+            # Optionally use Brain to evaluate node value
+            pass
         await asyncio.sleep(0.01)
         return random.random()
 

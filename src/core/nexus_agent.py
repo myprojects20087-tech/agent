@@ -4,15 +4,20 @@ from src.perception.qpe import QuadLayerPerceptionEngine
 from src.agent.planner import NeuroSymbolicPlanner
 from src.evasion.stealth import StealthCore
 from src.memory.stores import EpisodicMemory, KnowledgeGraph
+from src.brain import BrainFactory
 
 class NexusAgent:
-    def __init__(self, mode="distributed", profile: Optional[Dict] = None):
+    def __init__(self, mode="distributed", profile: Optional[Dict] = None, brain_config: Optional[Dict] = None):
         print(f"[NexusAgent] Initializing NEXUS-PRIME in {mode} mode")
         self.mode = mode
         self.profile = profile or {}
 
+        # Initialize the Brain (Central Intelligence)
+        default_brain_config = {"type": "local", "model": "qwen2-vl-7b"}
+        self.brain = BrainFactory.get_brain(brain_config or default_brain_config)
+
         self.qpe = QuadLayerPerceptionEngine()
-        self.planner = NeuroSymbolicPlanner()
+        self.planner = NeuroSymbolicPlanner(brain=self.brain)
         self.stealth = StealthCore()
         self.episodic_memory = EpisodicMemory()
         self.knowledge_graph = KnowledgeGraph()
@@ -33,7 +38,7 @@ class NexusAgent:
                 # 2. Quad-Layer Perception
                 current_state = await self.qpe.perceive()
 
-                # 3. MCTS-based Planning
+                # 3. MCTS-based Planning using the Brain
                 plan_trajectory = await self.planner.generate_plan(task, current_state)
                 print(f"[NexusAgent] Optimal Trajectory Selected: {plan_trajectory}")
 
