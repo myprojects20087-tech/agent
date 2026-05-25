@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEXUS - Browser Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #0D0D14;
+      --bg-panel: #13131F;
+      --bg-elevated: #1A1A2E;
+      --bg-input: #1E1E30;
+      --accent: #6C63FF;
+      --accent-glow: #6C63FF33;
+      --success: #00D4AA;
+      --danger: #FF5566;
+      --text-primary: #F0F0FF;
+      --text-muted: #7878A0;
+      --border: #2A2A40;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Layout */
+    .left-panel {
+      width: 60%;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background-color: var(--bg-panel);
+    }
+
+    .right-panel {
+      width: 40%;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-base);
+    }
+
+    /* Left Panel: Header */
+    .browser-header {
+      height: 52px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background-color: var(--bg-elevated);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+    .brand-logo { color: var(--accent); }
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 2s infinite;
+    }
+    .status-dot.offline {
+      background-color: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.4); }
+      70% { box-shadow: 0 0 0 6px rgba(0, 212, 170, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0); }
+    }
+
+    /* Left Panel: Main */
+    .browser-main {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .browser-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+    .browser-placeholder svg { width: 48px; height: 48px; margin-bottom: 12px; }
+
+    #browser-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: none;
+      background: white;
+    }
+
+    /* Left Panel: Ticker */
+    .browser-ticker {
+      height: 28px;
+      background-color: var(--bg-elevated);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Right Panel: Chat Header */
+    .chat-header {
+      height: 52px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background-color: var(--bg-base);
+    }
+    .chat-title { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 14px;}
+    .model-badge {
+      font-size: 10px;
+      background-color: var(--bg-input);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-muted);
+      margin-left: 8px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    /* Right Panel: Messages Area */
+    .chat-messages {
+      flex-grow: 1;
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Message Styles */
+    .message {
+      max-width: 85%;
+      animation: msg-fade-in 150ms ease-out forwards;
+      opacity: 0;
+      transform: translateY(8px);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    @keyframes msg-fade-in {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-user {
+      align-self: flex-end;
+      background-color: var(--accent);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 12px 12px 0 12px;
+    }
+
+    .msg-nexus {
+      align-self: flex-start;
+      background-color: var(--bg-elevated);
+      padding: 12px 14px;
+      border-radius: 4px 12px 12px 12px;
+      border-left: 2px solid var(--accent);
+      position: relative;
+    }
+    .msg-nexus pre { background: #000; padding: 8px; border-radius: 4px; margin-top: 8px; overflow-x: auto;}
+    .msg-nexus code { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+    .msg-action {
+      align-self: flex-start;
+      background-color: #161625;
+      padding: 12px;
+      border-radius: 4px 12px 12px 12px;
+      border-left: 2px solid var(--accent);
+      width: 100%;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+    .msg-action.done { border-left-color: var(--success); }
+    .msg-action.failed { border-left-color: var(--danger); }
+
+    .action-line {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+    }
+    .action-line.active { color: var(--text-primary); }
+
+    .msg-system {
+      align-self: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .thinking {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      padding: 8px;
+    }
+    .dot {
+      width: 4px;
+      height: 4px;
+      background-color: var(--text-muted);
+      border-radius: 50%;
+      animation: pulse-dot 1.4s infinite ease-in-out both;
+    }
+    .dot:nth-child(1) { animation-delay: -0.32s; }
+    .dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes pulse-dot {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    /* Empty State */
+    .empty-state {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .empty-logo { font-size: 48px; margin-bottom: 24px; opacity: 0.1; }
+    .chip-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .chip {
+      background-color: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chip:hover {
+      background-color: var(--bg-input);
+      color: var(--text-primary);
+      border-color: var(--accent);
+    }
+
+    /* Right Panel: Input Area */
+    .chat-input-area {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      background-color: var(--bg-base);
+    }
+    .input-container {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.2s;
+    }
+    .input-container:focus-within { border-color: var(--accent); }
+
+    textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 14px;
+      resize: none;
+      outline: none;
+      min-height: 24px;
+      max-height: 120px;
+      line-height: 1.5;
+    }
+    textarea::placeholder { color: var(--text-muted); }
+
+    .input-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .btn-icon {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-send {
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s;
+    }
+    .btn-send:hover { box-shadow: 0 0 10px var(--accent-glow); }
+    .btn-send:active { transform: scale(0.95); }
+
+    .btn-stop {
+      background-color: var(--danger);
+      display: none;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="left-panel">
+    <div class="browser-header">
+      <div class="brand">
+        <span class="brand-logo">⬢</span> NEXUS <span style="font-weight:400;color:var(--text-muted);">Browser Agent</span>
+      </div>
+      <div class="status-bar">
+        <span id="status-dot" class="status-dot offline"></span>
+        <span id="current-url">about:blank</span>
+      </div>
+    </div>
+
+    <div class="browser-main">
+      <div id="browser-placeholder" class="browser-placeholder">
+        <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        No active session
+      </div>
+      <iframe id="browser-iframe"></iframe>
+    </div>
+
+    <div class="browser-ticker" id="ticker">→ Waiting for instructions...</div>
+  </div>
+
+  <div class="right-panel">
+    <div class="chat-header">
+      <div class="chat-title">
+        ⬢ NEXUS <span class="model-badge">Gemini 2.0 Flash</span>
+      </div>
+      <div class="header-actions">
+        <span onclick="clearChat()" title="Clear Chat">🗑️</span>
+        <span title="Settings">⚙️</span>
+      </div>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-logo">⬢</div>
+        <div class="chip-grid">
+          <div class="chip" onclick="setPrompt(this.innerText)">Search Google for latest AI news</div>
+          <div class="chip" onclick="setPrompt(this.innerText)">Open YouTube and find a coding tutorial</div>
+          <div class="chip" onclick="setPrompt(this.innerText)">Go to GitHub and create a new repo</div>
+          <div class="chip" onclick="setPrompt(this.innerText)">Fill out a form for me</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <div class="input-container">
+        <textarea id="chat-input" placeholder="Ask anything or give NEXUS a command..." rows="1" oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
+        <div class="input-actions">
+          <button class="btn-icon">📎</button>
+          <div>
+            <button id="btn-stop" class="btn-send btn-stop" onclick="stopAction()">■</button>
+            <button id="btn-send" class="btn-send" onclick="sendMessage()">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const messagesContainer = document.getElementById('chat-messages');
+    const inputField = document.getElementById('chat-input');
+    const emptyState = document.getElementById('empty-state');
+    const ticker = document.getElementById('ticker');
+    const urlDisplay = document.getElementById('current-url');
+    const statusDot = document.getElementById('status-dot');
+
+    let chatHistory = [];
+    let isRunning = false;
+
+    function autoResize(textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = (textarea.scrollHeight < 120 ? textarea.scrollHeight : 120) + 'px';
+    }
+
+    function setPrompt(text) {
+      inputField.value = text;
+      autoResize(inputField);
+      inputField.focus();
+    }
+
+    function handleEnter(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function clearChat() {
+      messagesContainer.innerHTML = '';
+      messagesContainer.appendChild(emptyState);
+      emptyState.style.display = 'flex';
+      chatHistory = [];
+    }
+
+    function scrollToBottom() {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function toggleRunningState(running) {
+      isRunning = running;
+      document.getElementById('btn-send').style.display = running ? 'none' : 'flex';
+      document.getElementById('btn-stop').style.display = running ? 'flex' : 'none';
+      if (running) {
+        statusDot.classList.remove('offline');
+      } else {
+        statusDot.classList.add('offline');
+        ticker.innerText = "→ Waiting for instructions...";
+      }
+    }
+
+    function stopAction() {
+      // Future: send cancel signal
+      toggleRunningState(false);
+      removeThinking();
+      appendSystemMessage("Action cancelled by user.");
+    }
+
+    function appendUserMessage(text) {
+      emptyState.style.display = 'none';
+      const div = document.createElement('div');
+      div.className = 'message msg-user';
+      div.innerText = text;
+      messagesContainer.appendChild(div);
+      scrollToBottom();
+      chatHistory.push({ role: 'user', content: text });
+    }
+
+    function appendNexusMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'message msg-nexus';
+      // Simple markdown rendering for boldness/code
+      let html = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                     .replace(/`(.*?)`/g, '<code>$1</code>')
+                     .replace(/\n/g, '<br>');
+      div.innerHTML = html;
+      messagesContainer.appendChild(div);
+      scrollToBottom();
+      chatHistory.push({ role: 'assistant', content: text });
+    }
+
+    function appendActionCard(steps) {
+      const div = document.createElement('div');
+      div.className = 'message msg-action';
+
+      let html = '';
+      steps.forEach((step, i) => {
+        let icon = '🖱️';
+        if(step.type === 'navigate') icon = '🌐';
+        if(step.type === 'type') icon = '⌨️';
+        if(step.type === 'done') icon = '✅';
+        html += `<div class="action-line active">${icon}  ${step.description || step.type}</div>`;
+      });
+
+      div.innerHTML = html;
+      messagesContainer.appendChild(div);
+      scrollToBottom();
+    }
+
+    function appendSystemMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'message msg-system';
+      div.innerText = text;
+      messagesContainer.appendChild(div);
+      scrollToBottom();
+    }
+
+    function showThinking() {
+      const div = document.createElement('div');
+      div.id = 'thinking-indicator';
+      div.className = 'thinking';
+      div.innerHTML = `NEXUS is thinking <div class="dot"></div><div class="dot"></div><div class="dot"></div>`;
+      messagesContainer.appendChild(div);
+      scrollToBottom();
+    }
+
+    function removeThinking() {
+      const el = document.getElementById('thinking-indicator');
+      if (el) el.remove();
+    }
+
+    async function sendMessage() {
+      const text = inputField.value.trim();
+      if (!text || isRunning) return;
+
+      inputField.value = '';
+      autoResize(inputField);
+
+      appendUserMessage(text);
+      toggleRunningState(true);
+      showThinking();
+      ticker.innerText = "→ Analyzing intent...";
+
+      try {
+        const response = await fetch('/api/v1/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            history: chatHistory,
+            session: { current_url: urlDisplay.innerText, browser_active: !statusDot.classList.contains('offline') }
+          })
+        });
+
+        const data = await response.json();
+        removeThinking();
+
+        if (data.type === 'text' || data.type === 'both') {
+            if(data.content) appendNexusMessage(data.content);
+        }
+
+        if (data.type === 'action' || data.type === 'both') {
+            ticker.innerText = "→ Executing browser actions...";
+            if(data.steps) {
+                appendActionCard(data.steps);
+                // Update fake browser state for demo
+                const navStep = data.steps.find(s => s.type === 'navigate');
+                if (navStep && navStep.url) {
+                    urlDisplay.innerText = navStep.url;
+                }
+            }
+            if(data.message && data.type === 'action') appendNexusMessage(data.message);
+        }
+
+      } catch (err) {
+        removeThinking();
+        appendSystemMessage("Error connecting to NEXUS backend: " + err.message);
+      } finally {
+        toggleRunningState(false);
+      }
+    }
+  </script>
+</body>
+</html>
