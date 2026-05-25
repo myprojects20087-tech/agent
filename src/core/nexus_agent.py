@@ -7,6 +7,7 @@ from src.evasion.stealth import StealthCore
 from src.memory.stores import EpisodicMemory, KnowledgeGraph
 from src.brain import BrainFactory
 from src.agent.capabilities_base import CapabilityModules
+from pydantic import BaseModel
 
 class NexusAgent:
     def __init__(self, mode="distributed", profile: Optional[Dict] = None, brain_config: Optional[Dict] = None):

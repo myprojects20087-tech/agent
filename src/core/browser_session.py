@@ -26,7 +26,9 @@ class BrowserSession:
             "--disable-web-security", # Necessary for cross-origin iframe inspection
             "--window-size=1280,800",
             "--hide-scrollbars",
-            "--mute-audio"
+            "--mute-audio",
+            "--disable-gpu", # Ensures stability in headless docker envs
+            "--headless=new" # New headless mode behaves closer to real browser
         ]
 
         try:
@@ -58,8 +60,11 @@ class BrowserSession:
             self.tab.call_method("DOM.enable")
             self.tab.call_method("Runtime.enable")
 
-            # Inject stealth JS early
-            stealth_js = "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+            # Inject stealth JS early to mask CDP signatures
+            stealth_js = """
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            window.chrome = { runtime: {} };
+            """
             self.tab.call_method("Page.addScriptToEvaluateOnNewDocument", source=stealth_js)
 
             print("[BrowserSession] Hardened CDP connection established.")
