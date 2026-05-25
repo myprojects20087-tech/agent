@@ -18,7 +18,7 @@ class CapabilityModules:
                 url = action.split("navigate to ")[-1].strip()
                 if not url.startswith("http"): url = "https://" + url
                 print(f"[Capabilities] Executing raw CDP Page.navigate to: {url}")
-                tab.call_method("Page.navigate", url=url)
+                await asyncio.to_thread(tab.call_method, "Page.navigate", url=url)
                 return {"status": "success", "action": "navigate"}
 
             cmd = json.loads(action)
@@ -27,7 +27,7 @@ class CapabilityModules:
             if action_type == "navigate":
                 url = cmd.get("url")
                 print(f"[Capabilities] Executing raw CDP Page.navigate to: {url}")
-                tab.call_method("Page.navigate", url=url)
+                await asyncio.to_thread(tab.call_method, "Page.navigate", url=url)
 
             elif action_type == "click":
                 # For a real click, we need x, y coordinates from QPE.
@@ -36,15 +36,15 @@ class CapabilityModules:
                 y = cmd.get("y", 100) + random.uniform(-2, 2)
 
                 print(f"[Capabilities] Executing raw CDP Input.dispatchMouseEvent at ({x}, {y})")
-                tab.call_method("Input.dispatchMouseEvent", type="mouseMoved", x=x, y=y)
-                tab.call_method("Input.dispatchMouseEvent", type="mousePressed", x=x, y=y, button="left", clickCount=1)
-                tab.call_method("Input.dispatchMouseEvent", type="mouseReleased", x=x, y=y, button="left", clickCount=1)
+                await asyncio.to_thread(tab.call_method, "Input.dispatchMouseEvent", type="mouseMoved", x=x, y=y)
+                await asyncio.to_thread(tab.call_method, "Input.dispatchMouseEvent", type="mousePressed", x=x, y=y, button="left", clickCount=1)
+                await asyncio.to_thread(tab.call_method, "Input.dispatchMouseEvent", type="mouseReleased", x=x, y=y, button="left", clickCount=1)
 
             elif action_type == "type":
                 text = cmd.get("text", "")
                 print(f"[Capabilities] Executing raw CDP Input.dispatchKeyEvent for text: '{text}'")
                 for char in text:
-                    tab.call_method("Input.dispatchKeyEvent", type="char", text=char)
+                    await asyncio.to_thread(tab.call_method, "Input.dispatchKeyEvent", type="char", text=char)
                     await asyncio.sleep(random.uniform(0.05, 0.15)) # Typing cadence
 
             else:

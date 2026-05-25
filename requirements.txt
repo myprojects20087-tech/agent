@@ -19,3 +19,4 @@ sqlalchemy==2.0.30
 cryptography==42.0.7
 loguru==0.7.2
 faster-whisper==1.0.2
+python-multipart==0.0.9
