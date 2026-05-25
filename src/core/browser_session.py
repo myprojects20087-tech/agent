@@ -60,6 +60,19 @@ class BrowserSession:
             self.tab.call_method("DOM.enable")
             self.tab.call_method("Runtime.enable")
 
+            # Setup Console/Exception Interception for Reflexive Auto-Correction
+            self.console_logs = []
+            self.exceptions = []
+
+            def handle_console(**kwargs):
+                self.console_logs.append(kwargs)
+            def handle_exception(**kwargs):
+                self.exceptions.append(kwargs)
+
+            self.tab.set_listener("Runtime.consoleAPICalled", handle_console)
+            self.tab.set_listener("Runtime.exceptionThrown", handle_exception)
+            self.agent.browser_exceptions = self.exceptions # Expose to agent loop
+
             # Inject stealth JS early to mask CDP signatures
             stealth_js = """
             Object.defineProperty(navigator, 'webdriver', {get: () => undefined});

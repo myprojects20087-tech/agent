@@ -7,6 +7,9 @@ import os
 import json
 import asyncio
 from src.core.nexus_agent import NexusAgent
+from fastapi import UploadFile, File
+import shutil
+from src.agent.voice import VoiceCommandModule
 
 app = FastAPI(title="NEXUS-PRIME REST API", version="4.0-REAL")
 
@@ -20,6 +23,7 @@ app.add_middleware(
 )
 
 global_agent = None
+voice_module = VoiceCommandModule()
 
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
@@ -129,3 +133,17 @@ async def stream_endpoint(request: ChatRequest):
 @app.get("/api/v2/health")
 async def health_check():
     return {"status": "operational", "encryption": "AES-256-GCM Active"}
+@app.post("/api/v1/voice")
+async def voice_endpoint(file: UploadFile = File(...)):
+    print(f"[API:Voice] Received audio payload: {file.filename}")
+    import uuid
+    temp_path = f"/tmp/{uuid.uuid4().hex}.wav"
+    try:
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        text = await voice_module.transcribe(temp_path)
+        return {"status": "success", "transcription": text}
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)

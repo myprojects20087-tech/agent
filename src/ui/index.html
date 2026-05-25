@@ -329,6 +329,7 @@
   </style>
 </head>
 <body>
+  <canvas id="webgl-canvas" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:-1; pointer-events:none;"></canvas>
 
   <div class="left-panel" id="panel-left">
     <div class="browser-header">
@@ -460,4 +461,88 @@
     }
   </script>
 </body>
+
+  <!-- Minimal WebGL Particle System without external libraries -->
+  <script>
+    const canvas = document.getElementById('webgl-canvas');
+    const ctx = canvas.getContext('2d'); // Using 2D for simplicity in standalone HTML, still visually striking
+    let particles = [];
+    let animationId;
+    let particleSpeed = 1;
+    let particleColor = 'rgba(59, 130, 246, 0.4)';
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Particle {
+        constructor() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.vx = (Math.random() - 0.5) * particleSpeed;
+            this.vy = (Math.random() - 0.5) * particleSpeed;
+            this.radius = Math.random() * 2 + 1;
+        }
+        update() {
+            this.x += this.vx * particleSpeed;
+            this.y += this.vy * particleSpeed;
+            if (this.x < 0 || this.x > canvas.width) this.vx = -this.vx;
+            if (this.y < 0 || this.y > canvas.height) this.vy = -this.vy;
+        }
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fillStyle = particleColor;
+            ctx.fill();
+        }
+    }
+
+    function initParticles() {
+        particles = [];
+        for (let i = 0; i < 100; i++) particles.push(new Particle());
+    }
+
+    function animateParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => { p.update(); p.draw(); });
+
+        // Draw connections
+        ctx.beginPath();
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 100) {
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                }
+            }
+        }
+        ctx.strokeStyle = particleColor.replace('0.4', '0.1');
+        ctx.stroke();
+
+        animationId = requestAnimationFrame(animateParticles);
+    }
+
+    initParticles();
+    animateParticles();
+
+    // Hook into existing status updates to change particle behavior
+    const originalUpdateStatus = window.updateStatus || function(){};
+    updateStatus = function(status) {
+        originalUpdateStatus(status);
+        if (status === 'running') {
+            particleSpeed = 5;
+            particleColor = 'rgba(16, 185, 129, 0.6)'; // Success green during execution
+        } else {
+            particleSpeed = 1;
+            particleColor = 'rgba(59, 130, 246, 0.4)'; // Blue idle
+        }
+    };
+  </script>
+
 </html>
