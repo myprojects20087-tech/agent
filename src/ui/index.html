@@ -2,256 +2,480 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NEXUS - Browser Agent</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NEXUS PRIME - Enterprise Browser Agent</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-base: #0D0D14;
-      --bg-panel: #13131F;
-      --bg-elevated: #1A1A2E;
-      --bg-input: #1E1E30;
-      --accent: #6C63FF;
-      --accent-glow: #6C63FF33;
-      --success: #00D4AA;
-      --danger: #FF5566;
-      --text-primary: #F0F0FF;
-      --text-muted: #7878A0;
-      --border: #2A2A40;
+      --bg-base: #09090b;
+      --bg-panel: rgba(24, 24, 27, 0.65);
+      --bg-elevated: rgba(39, 39, 42, 0.8);
+      --bg-input: rgba(39, 39, 42, 0.5);
+      --accent: #8b5cf6;
+      --accent-glow: rgba(139, 92, 246, 0.4);
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --text-primary: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --border: rgba(63, 63, 70, 0.5);
+
+      --blur: backdrop-filter: blur(16px) saturate(180%);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       background-color: var(--bg-base);
       color: var(--text-primary);
       display: flex;
       height: 100vh;
       overflow: hidden;
+      /* Subtle mesh gradient background */
+      background-image:
+        radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
     }
 
     /* Layout */
+    .container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+
     .left-panel {
-      width: 60%;
+      width: 65%;
       display: flex;
       flex-direction: column;
       border-right: 1px solid var(--border);
-      background-color: var(--bg-panel);
+      background: var(--bg-panel);
+      backdrop-filter: blur(20px);
+      position: relative;
     }
 
     .right-panel {
-      width: 40%;
+      width: 35%;
       display: flex;
       flex-direction: column;
-      background-color: var(--bg-base);
+      background: var(--bg-base);
+      box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+      z-index: 10;
     }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
     /* Left Panel: Header */
     .browser-header {
-      height: 52px;
-      padding: 0 16px;
+      height: 60px;
+      padding: 0 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       border-bottom: 1px solid var(--border);
-      background-color: var(--bg-elevated);
+      background: rgba(9, 9, 11, 0.7);
+      backdrop-filter: blur(12px);
+      z-index: 20;
     }
+
     .brand {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
       font-weight: 700;
-      font-size: 14px;
-      letter-spacing: 1px;
+      font-size: 15px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
     }
-    .brand-logo { color: var(--accent); }
+    .brand-logo {
+      color: var(--accent);
+      font-size: 20px;
+      filter: drop-shadow(0 0 8px var(--accent-glow));
+    }
+    .badge-enterprise {
+      font-size: 9px;
+      background: rgba(139, 92, 246, 0.2);
+      color: #c4b5fd;
+      padding: 3px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(139, 92, 246, 0.4);
+    }
+
+    .url-bar-container {
+      flex-grow: 1;
+      max-width: 500px;
+      margin: 0 20px;
+      position: relative;
+    }
+    .url-bar {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      padding: 8px 16px 8px 36px;
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 13px;
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+    .url-bar:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+    .url-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
     .status-bar {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       font-size: 13px;
       color: var(--text-muted);
+      background: var(--bg-input);
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
     }
     .status-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
       background-color: var(--success);
-      box-shadow: 0 0 8px var(--success);
-      animation: pulse 2s infinite;
+      box-shadow: 0 0 10px var(--success);
+      animation: pulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
     }
     .status-dot.offline {
       background-color: var(--danger);
-      box-shadow: 0 0 8px var(--danger);
+      box-shadow: 0 0 10px var(--danger);
       animation: none;
+    }
+    .status-dot.working {
+      background-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+      animation: pulse 1s infinite;
     }
 
     @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.4); }
-      70% { box-shadow: 0 0 0 6px rgba(0, 212, 170, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0); }
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
     }
 
-    /* Left Panel: Main */
+    /* Left Panel: Main Engine View */
     .browser-main {
       flex-grow: 1;
       display: flex;
-      align-items: center;
-      justify-content: center;
       position: relative;
+      background: #000;
+      overflow: hidden;
     }
+
     .browser-placeholder {
+      position: absolute;
+      inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       color: var(--text-muted);
-      opacity: 0.5;
+      background: radial-gradient(circle at center, #1a1a24 0%, #000 100%);
+      z-index: 5;
+      transition: opacity 0.5s ease;
     }
-    .browser-placeholder svg { width: 48px; height: 48px; margin-bottom: 12px; }
+
+    /* Radar Scan Animation for Placeholder */
+    .radar {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      position: relative;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+    .radar::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 50%; height: 50%;
+      background: conic-gradient(transparent, transparent, var(--accent));
+      transform-origin: 0 0;
+      animation: scan 2s linear infinite;
+    }
+    @keyframes scan { 100% { transform: rotate(360deg); } }
+
+    /* Visual Grounding Overlay (Shows what AI sees) */
+    .visual-grounding-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .bounding-box {
+      position: absolute;
+      border: 2px solid var(--accent);
+      background: rgba(139, 92, 246, 0.1);
+      border-radius: 2px;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 10px rgba(139,92,246,0.3);
+    }
+    .bounding-box::after {
+      content: attr(data-id);
+      position: absolute;
+      top: -18px;
+      left: -2px;
+      background: var(--accent);
+      color: white;
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 2px 4px;
+      border-radius: 2px;
+    }
 
     #browser-iframe {
       width: 100%;
       height: 100%;
       border: none;
-      display: none;
       background: white;
+      position: relative;
+      z-index: 1;
     }
 
-    /* Left Panel: Ticker */
+    /* Left Panel: Advanced Ticker */
     .browser-ticker {
-      height: 28px;
-      background-color: var(--bg-elevated);
+      height: 36px;
+      background: rgba(9, 9, 11, 0.9);
       border-top: 1px solid var(--border);
       display: flex;
       align-items: center;
-      padding: 0 16px;
+      padding: 0 20px;
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
       color: var(--text-muted);
+      gap: 12px;
+      overflow: hidden;
     }
+    .ticker-icon { color: var(--accent); }
+    .ticker-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      animation: fadeText 0.3s ease-in;
+    }
+    @keyframes fadeText { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 
     /* Right Panel: Chat Header */
     .chat-header {
-      height: 52px;
-      padding: 0 16px;
+      height: 60px;
+      padding: 0 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       border-bottom: 1px solid var(--border);
-      background-color: var(--bg-base);
+      background: rgba(9, 9, 11, 0.7);
+      backdrop-filter: blur(12px);
     }
-    .chat-title { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 14px;}
+    .chat-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 15px;
+    }
     .model-badge {
-      font-size: 10px;
-      background-color: var(--bg-input);
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: var(--text-muted);
-      margin-left: 8px;
+      font-size: 11px;
+      background: linear-gradient(90deg, rgba(139,92,246,0.2) 0%, rgba(16,185,129,0.2) 100%);
+      border: 1px solid rgba(139,92,246,0.3);
+      padding: 4px 8px;
+      border-radius: 6px;
+      color: #e4e4e7;
+      font-family: 'JetBrains Mono', monospace;
     }
     .header-actions {
       display: flex;
-      gap: 12px;
+      gap: 16px;
       color: var(--text-muted);
-      cursor: pointer;
     }
+    .icon-btn {
+      cursor: pointer;
+      transition: color 0.2s;
+      font-size: 16px;
+    }
+    .icon-btn:hover { color: var(--text-primary); }
 
     /* Right Panel: Messages Area */
     .chat-messages {
       flex-grow: 1;
-      padding: 16px;
+      padding: 24px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 24px;
+      scroll-behavior: smooth;
     }
 
     /* Message Styles */
     .message {
-      max-width: 85%;
-      animation: msg-fade-in 150ms ease-out forwards;
+      max-width: 88%;
+      animation: msg-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       opacity: 0;
-      transform: translateY(8px);
-      line-height: 1.5;
-      font-size: 14px;
+      transform: translateY(20px);
+      line-height: 1.6;
+      font-size: 15px;
     }
-    @keyframes msg-fade-in {
+    @keyframes msg-slide-up {
       to { opacity: 1; transform: translateY(0); }
     }
 
     .msg-user {
       align-self: flex-end;
-      background-color: var(--accent);
+      background: linear-gradient(135deg, var(--accent) 0%, #7c3aed 100%);
       color: white;
-      padding: 10px 14px;
-      border-radius: 12px 12px 0 12px;
+      padding: 12px 18px;
+      border-radius: 16px 16px 4px 16px;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.25);
     }
 
     .msg-nexus {
       align-self: flex-start;
       background-color: var(--bg-elevated);
-      padding: 12px 14px;
-      border-radius: 4px 12px 12px 12px;
-      border-left: 2px solid var(--accent);
+      padding: 16px 20px;
+      border-radius: 8px 16px 16px 16px;
+      border: 1px solid var(--border);
       position: relative;
     }
-    .msg-nexus pre { background: #000; padding: 8px; border-radius: 4px; margin-top: 8px; overflow-x: auto;}
-    .msg-nexus code { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    .msg-nexus::before {
+      content: '⬢';
+      position: absolute;
+      left: -28px;
+      top: 0;
+      color: var(--accent);
+      font-size: 18px;
+    }
 
+    .msg-nexus h1, .msg-nexus h2, .msg-nexus h3 { margin: 12px 0 8px 0; color: #fff; }
+    .msg-nexus pre {
+      background: #000;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 12px 0;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+    }
+    .msg-nexus code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #a78bfa;
+    }
+
+    /* Action Card UI */
     .msg-action {
       align-self: flex-start;
-      background-color: #161625;
-      padding: 12px;
-      border-radius: 4px 12px 12px 12px;
-      border-left: 2px solid var(--accent);
+      background: linear-gradient(180deg, #18181b 0%, #09090b 100%);
+      padding: 16px;
+      border-radius: 8px 16px 16px 16px;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
       width: 100%;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      position: relative;
+    }
+    .msg-action::before {
+      content: '⚡';
+      position: absolute;
+      left: -28px;
+      top: 0;
+      font-size: 16px;
     }
     .msg-action.done { border-left-color: var(--success); }
     .msg-action.failed { border-left-color: var(--danger); }
 
+    .action-header {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+
     .action-line {
       display: flex;
-      gap: 8px;
-      margin-bottom: 6px;
+      gap: 12px;
+      margin-bottom: 10px;
       color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      align-items: center;
     }
     .action-line.active { color: var(--text-primary); }
+    .action-line:last-child { margin-bottom: 0; }
 
-    .msg-system {
-      align-self: center;
-      font-size: 12px;
-      color: var(--text-muted);
-      font-style: italic;
-    }
-
-    .thinking {
+    .action-icon {
       display: flex;
-      gap: 4px;
       align-items: center;
-      color: var(--text-muted);
-      font-size: 13px;
-      padding: 8px;
-    }
-    .dot {
-      width: 4px;
-      height: 4px;
-      background-color: var(--text-muted);
-      border-radius: 50%;
-      animation: pulse-dot 1.4s infinite ease-in-out both;
-    }
-    .dot:nth-child(1) { animation-delay: -0.32s; }
-    .dot:nth-child(2) { animation-delay: -0.16s; }
-    @keyframes pulse-dot {
-      0%, 80%, 100% { transform: scale(0); }
-      40% { transform: scale(1); }
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: var(--bg-input);
+      border-radius: 6px;
+      font-size: 12px;
     }
 
-    /* Empty State */
+    /* Thinking / Streaming Indicator */
+    .thinking-box {
+      align-self: flex-start;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-muted);
+      font-size: 14px;
+      padding: 12px 0;
+      position: relative;
+      margin-left: 32px;
+    }
+    .thinking-box::before {
+      content: '⬢';
+      position: absolute;
+      left: -32px;
+      top: 10px;
+      color: var(--text-muted);
+      font-size: 18px;
+      animation: spin-pulse 2s infinite linear;
+    }
+    @keyframes spin-pulse {
+      0% { transform: rotate(0deg) scale(1); color: var(--text-muted); }
+      50% { transform: rotate(180deg) scale(1.2); color: var(--accent); }
+      100% { transform: rotate(360deg) scale(1); color: var(--text-muted); }
+    }
+    .typing-indicator span {
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      background: currentColor;
+      border-radius: 50%;
+      margin: 0 2px;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1.5); }
+    }
+
+    /* Empty State / Suggestions */
     .empty-state {
       flex-grow: 1;
       display: flex;
@@ -259,47 +483,65 @@
       align-items: center;
       justify-content: center;
       padding: 20px;
+      animation: fade-in 1s ease;
     }
-    .empty-logo { font-size: 48px; margin-bottom: 24px; opacity: 0.1; }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+    .empty-logo {
+      font-size: 64px;
+      margin-bottom: 30px;
+      color: var(--bg-input);
+      filter: drop-shadow(0 0 20px rgba(255,255,255,0.05));
+    }
+
     .chip-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 16px;
       width: 100%;
-      max-width: 400px;
+      max-width: 480px;
     }
     .chip {
-      background-color: var(--bg-elevated);
+      background: var(--bg-elevated);
       border: 1px solid var(--border);
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 12px;
+      padding: 16px;
+      border-radius: 12px;
+      font-size: 14px;
       color: var(--text-muted);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
+    .chip span { color: var(--text-primary); font-weight: 500; }
     .chip:hover {
-      background-color: var(--bg-input);
-      color: var(--text-primary);
+      background: var(--bg-input);
+      transform: translateY(-2px);
       border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
     }
 
     /* Right Panel: Input Area */
     .chat-input-area {
-      padding: 16px;
-      border-top: 1px solid var(--border);
-      background-color: var(--bg-base);
+      padding: 20px 24px 30px 24px;
+      background: linear-gradient(0deg, var(--bg-base) 60%, transparent 100%);
     }
-    .input-container {
-      background-color: var(--bg-input);
+    .input-wrapper {
+      position: relative;
+      background: var(--bg-elevated);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px;
+      border-radius: 16px;
+      padding: 12px 16px;
       display: flex;
       flex-direction: column;
-      transition: border-color 0.2s;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
     }
-    .input-container:focus-within { border-color: var(--accent); }
+    .input-wrapper:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 4px 25px rgba(139,92,246,0.15);
+    }
 
     textarea {
       width: 100%;
@@ -307,85 +549,131 @@
       border: none;
       color: var(--text-primary);
       font-family: inherit;
-      font-size: 14px;
+      font-size: 15px;
       resize: none;
       outline: none;
       min-height: 24px;
-      max-height: 120px;
+      max-height: 200px;
       line-height: 1.5;
+      padding-right: 40px; /* Space for send btn */
     }
     textarea::placeholder { color: var(--text-muted); }
 
-    .input-actions {
+    .input-toolbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 8px;
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
     }
-    .btn-icon {
+
+    .toolbar-left { display: flex; gap: 12px; }
+    .tool-btn {
       background: none;
       border: none;
       color: var(--text-muted);
       cursor: pointer;
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 6px;
+      font-size: 13px;
+      transition: color 0.2s;
     }
-    .btn-send {
-      background-color: var(--accent);
+    .tool-btn:hover { color: var(--text-primary); }
+
+    .btn-action {
+      background: var(--accent);
       color: white;
       border: none;
-      border-radius: 6px;
-      width: 28px;
-      height: 28px;
+      border-radius: 8px;
+      width: 32px;
+      height: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: transform 0.1s, box-shadow 0.2s;
+      transition: all 0.2s;
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
     }
-    .btn-send:hover { box-shadow: 0 0 10px var(--accent-glow); }
-    .btn-send:active { transform: scale(0.95); }
+    .btn-action:hover {
+      background: #7c3aed;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    .btn-action:active { transform: scale(0.92); }
 
     .btn-stop {
-      background-color: var(--danger);
+      background: var(--danger);
       display: none;
     }
+    .btn-stop:hover {
+      background: #dc2626;
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    }
 
+    /* Security Badge */
+    .security-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--success);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 12px;
+      justify-content: center;
+      opacity: 0.7;
+    }
   </style>
 </head>
 <body>
 
+  <!-- Left: Visual Execution Environment -->
   <div class="left-panel">
     <div class="browser-header">
       <div class="brand">
-        <span class="brand-logo">⬢</span> NEXUS <span style="font-weight:400;color:var(--text-muted);">Browser Agent</span>
+        <span class="brand-logo">⬢</span> NEXUS PRIME
+        <span class="badge-enterprise">Enterprise</span>
+      </div>
+      <div class="url-bar-container">
+        <span class="url-icon">🔒</span>
+        <input type="text" class="url-bar" id="current-url" value="about:blank" readonly>
       </div>
       <div class="status-bar">
         <span id="status-dot" class="status-dot offline"></span>
-        <span id="current-url">about:blank</span>
+        <span id="status-text">Disconnected</span>
       </div>
     </div>
 
-    <div class="browser-main">
+    <div class="browser-main" id="browser-main">
       <div id="browser-placeholder" class="browser-placeholder">
-        <svg fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-        No active session
+        <div class="radar"></div>
+        <h3>Awaiting Directive</h3>
+        <p style="font-size: 13px; margin-top: 8px;">System initialized and ready for execution.</p>
       </div>
       <iframe id="browser-iframe"></iframe>
+
+      <!-- Visual Grounding Overlay -->
+      <div class="visual-grounding-overlay" id="vg-overlay"></div>
     </div>
 
-    <div class="browser-ticker" id="ticker">→ Waiting for instructions...</div>
+    <div class="browser-ticker" id="ticker">
+      <span class="ticker-icon">⚡</span>
+      <span class="ticker-text" id="ticker-text">System Idle. Telemetry streams active.</span>
+    </div>
   </div>
 
+  <!-- Right: Unified Intelligence Chat -->
   <div class="right-panel">
     <div class="chat-header">
       <div class="chat-title">
-        ⬢ NEXUS <span class="model-badge">Gemini 2.0 Flash</span>
+        Intelligence Nexus
+        <span class="model-badge">Gemini 2.0 Pro</span>
       </div>
       <div class="header-actions">
-        <span onclick="clearChat()" title="Clear Chat">🗑️</span>
-        <span title="Settings">⚙️</span>
+        <span class="icon-btn" onclick="clearChat()" title="Reset Context">⟳</span>
+        <span class="icon-btn" title="Agent Settings">⚙️</span>
       </div>
     </div>
 
@@ -393,48 +681,78 @@
       <div class="empty-state" id="empty-state">
         <div class="empty-logo">⬢</div>
         <div class="chip-grid">
-          <div class="chip" onclick="setPrompt(this.innerText)">Search Google for latest AI news</div>
-          <div class="chip" onclick="setPrompt(this.innerText)">Open YouTube and find a coding tutorial</div>
-          <div class="chip" onclick="setPrompt(this.innerText)">Go to GitHub and create a new repo</div>
-          <div class="chip" onclick="setPrompt(this.innerText)">Fill out a form for me</div>
+          <div class="chip" onclick="setPrompt('Analyze the stock market trends on Yahoo Finance')">
+            <span>Market Analysis</span>
+            Extract Yahoo Finance trends
+          </div>
+          <div class="chip" onclick="setPrompt('Find the cheapest flight from NYC to London on Kayak')">
+            <span>Travel Search</span>
+            Find flights on Kayak
+          </div>
+          <div class="chip" onclick="setPrompt('Log into the staging server and audit the security logs')">
+            <span>Security Audit</span>
+            Check staging server logs
+          </div>
+          <div class="chip" onclick="setPrompt('Explain how your quad-layer perception engine works')">
+            <span>System Query</span>
+            Explain QPE Architecture
+          </div>
         </div>
       </div>
     </div>
 
     <div class="chat-input-area">
-      <div class="input-container">
-        <textarea id="chat-input" placeholder="Ask anything or give NEXUS a command..." rows="1" oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
-        <div class="input-actions">
-          <button class="btn-icon">📎</button>
-          <div>
-            <button id="btn-stop" class="btn-send btn-stop" onclick="stopAction()">■</button>
-            <button id="btn-send" class="btn-send" onclick="sendMessage()">↑</button>
+      <div class="input-wrapper">
+        <textarea id="chat-input" placeholder="Type a command or question..." rows="1" oninput="autoResize(this)" onkeydown="handleEnter(event)"></textarea>
+
+        <div class="input-toolbar">
+          <div class="toolbar-left">
+            <button class="tool-btn" title="Attach Context">📎 Context</button>
+            <button class="tool-btn" title="Vision Mode">👁️ Vision</button>
           </div>
         </div>
+
+        <button id="btn-stop" class="btn-action btn-stop" onclick="stopAction()" title="Halt Execution">■</button>
+        <button id="btn-send" class="btn-action" onclick="sendMessage()" title="Dispatch">↑</button>
+      </div>
+
+      <div class="security-badge">
+        <span>🔒 AES-256 Vault Active</span> • <span>Evasion Core: ENABLED</span>
       </div>
     </div>
   </div>
 
   <script>
-    const messagesContainer = document.getElementById('chat-messages');
-    const inputField = document.getElementById('chat-input');
-    const emptyState = document.getElementById('empty-state');
-    const ticker = document.getElementById('ticker');
-    const urlDisplay = document.getElementById('current-url');
-    const statusDot = document.getElementById('status-dot');
+    // Advanced Frontend Logic for NEXUS PRIME
+    const ui = {
+      msgs: document.getElementById('chat-messages'),
+      input: document.getElementById('chat-input'),
+      empty: document.getElementById('empty-state'),
+      ticker: document.getElementById('ticker-text'),
+      url: document.getElementById('current-url'),
+      dot: document.getElementById('status-dot'),
+      statusTxt: document.getElementById('status-text'),
+      btnSend: document.getElementById('btn-send'),
+      btnStop: document.getElementById('btn-stop'),
+      placeholder: document.getElementById('browser-placeholder'),
+      overlay: document.getElementById('vg-overlay')
+    };
 
-    let chatHistory = [];
-    let isRunning = false;
+    let state = {
+      history: [],
+      isRunning: false,
+      abortController: null
+    };
 
-    function autoResize(textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = (textarea.scrollHeight < 120 ? textarea.scrollHeight : 120) + 'px';
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 200) + 'px';
     }
 
     function setPrompt(text) {
-      inputField.value = text;
-      autoResize(inputField);
-      inputField.focus();
+      ui.input.value = text;
+      autoResize(ui.input);
+      ui.input.focus();
     }
 
     function handleEnter(e) {
@@ -445,73 +763,108 @@
     }
 
     function clearChat() {
-      messagesContainer.innerHTML = '';
-      messagesContainer.appendChild(emptyState);
-      emptyState.style.display = 'flex';
-      chatHistory = [];
+      ui.msgs.innerHTML = '';
+      ui.msgs.appendChild(ui.empty);
+      ui.empty.style.display = 'flex';
+      state.history = [];
+      ui.placeholder.style.opacity = '1';
+      ui.url.value = 'about:blank';
+      updateStatus('idle');
     }
 
     function scrollToBottom() {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      ui.msgs.scrollTo({ top: ui.msgs.scrollHeight, behavior: 'smooth' });
     }
 
-    function toggleRunningState(running) {
-      isRunning = running;
-      document.getElementById('btn-send').style.display = running ? 'none' : 'flex';
-      document.getElementById('btn-stop').style.display = running ? 'flex' : 'none';
-      if (running) {
-        statusDot.classList.remove('offline');
-      } else {
-        statusDot.classList.add('offline');
-        ticker.innerText = "→ Waiting for instructions...";
+    function updateStatus(status) {
+      ui.dot.className = 'status-dot';
+      switch(status) {
+        case 'running':
+          state.isRunning = true;
+          ui.dot.classList.add('working');
+          ui.statusTxt.innerText = 'Executing';
+          ui.btnSend.style.display = 'none';
+          ui.btnStop.style.display = 'flex';
+          ui.placeholder.style.opacity = '0';
+          break;
+        case 'idle':
+          state.isRunning = false;
+          ui.statusTxt.innerText = 'Connected';
+          ui.ticker.innerText = 'System Idle. Awaiting directives.';
+          ui.btnSend.style.display = 'flex';
+          ui.btnStop.style.display = 'none';
+          break;
+        case 'offline':
+          state.isRunning = false;
+          ui.dot.classList.add('offline');
+          ui.statusTxt.innerText = 'Disconnected';
+          ui.btnSend.style.display = 'flex';
+          ui.btnStop.style.display = 'none';
+          break;
       }
     }
 
     function stopAction() {
-      // Future: send cancel signal
-      toggleRunningState(false);
+      if (state.abortController) {
+        state.abortController.abort();
+      }
+      updateStatus('idle');
       removeThinking();
-      appendSystemMessage("Action cancelled by user.");
+      appendSystemMessage("Execution halted by operator.");
     }
 
+    // --- Message Renderers ---
+
     function appendUserMessage(text) {
-      emptyState.style.display = 'none';
+      ui.empty.style.display = 'none';
       const div = document.createElement('div');
       div.className = 'message msg-user';
       div.innerText = text;
-      messagesContainer.appendChild(div);
+      ui.msgs.appendChild(div);
       scrollToBottom();
-      chatHistory.push({ role: 'user', content: text });
+      state.history.push({ role: 'user', content: text });
     }
 
     function appendNexusMessage(text) {
       const div = document.createElement('div');
       div.className = 'message msg-nexus';
-      // Simple markdown rendering for boldness/code
+      // Basic markdown
       let html = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
                      .replace(/`(.*?)`/g, '<code>$1</code>')
                      .replace(/\n/g, '<br>');
       div.innerHTML = html;
-      messagesContainer.appendChild(div);
+      ui.msgs.appendChild(div);
       scrollToBottom();
-      chatHistory.push({ role: 'assistant', content: text });
+      state.history.push({ role: 'assistant', content: text });
     }
 
     function appendActionCard(steps) {
       const div = document.createElement('div');
       div.className = 'message msg-action';
 
-      let html = '';
-      steps.forEach((step, i) => {
+      let html = `<div class="action-header">Browser Execution Trace</div>`;
+      steps.forEach(step => {
         let icon = '🖱️';
         if(step.type === 'navigate') icon = '🌐';
         if(step.type === 'type') icon = '⌨️';
         if(step.type === 'done') icon = '✅';
-        html += `<div class="action-line active">${icon}  ${step.description || step.type}</div>`;
+        if(step.type === 'error') icon = '❌';
+
+        html += `
+          <div class="action-line active">
+            <div class="action-icon">${icon}</div>
+            <div>${step.description || step.type}</div>
+          </div>`;
       });
 
       div.innerHTML = html;
-      messagesContainer.appendChild(div);
+
+      // Styling based on completion
+      const lastStep = steps[steps.length-1];
+      if(lastStep && lastStep.type === 'done') div.classList.add('done');
+      if(lastStep && lastStep.type === 'error') div.classList.add('failed');
+
+      ui.msgs.appendChild(div);
       scrollToBottom();
     }
 
@@ -519,16 +872,17 @@
       const div = document.createElement('div');
       div.className = 'message msg-system';
       div.innerText = text;
-      messagesContainer.appendChild(div);
+      ui.msgs.appendChild(div);
       scrollToBottom();
     }
 
     function showThinking() {
+      removeThinking();
       const div = document.createElement('div');
       div.id = 'thinking-indicator';
-      div.className = 'thinking';
-      div.innerHTML = `NEXUS is thinking <div class="dot"></div><div class="dot"></div><div class="dot"></div>`;
-      messagesContainer.appendChild(div);
+      div.className = 'thinking-box';
+      div.innerHTML = `Processing intent <div class="typing-indicator"><span></span><span></span><span></span></div>`;
+      ui.msgs.appendChild(div);
       scrollToBottom();
     }
 
@@ -537,54 +891,83 @@
       if (el) el.remove();
     }
 
-    async function sendMessage() {
-      const text = inputField.value.trim();
-      if (!text || isRunning) return;
+    // --- Mock Visual Grounding Overlay ---
+    function drawBoundingBoxes(elements) {
+      ui.overlay.innerHTML = '';
+      if(!elements) return;
+      elements.forEach(el => {
+        const box = document.createElement('div');
+        box.className = 'bounding-box';
+        // Random placement for visual effect since we don't have a real iframe feed here
+        box.style.left = Math.random() * 80 + '%';
+        box.style.top = Math.random() * 80 + '%';
+        box.style.width = (Math.random() * 150 + 50) + 'px';
+        box.style.height = (Math.random() * 30 + 20) + 'px';
+        box.setAttribute('data-id', el.nexus_id || Math.random().toString(36).substr(2, 6));
+        ui.overlay.appendChild(box);
+      });
+    }
 
-      inputField.value = '';
-      autoResize(inputField);
+    // --- Network Communication ---
+    async function sendMessage() {
+      const text = ui.input.value.trim();
+      if (!text || state.isRunning) return;
+
+      ui.input.value = '';
+      autoResize(ui.input);
 
       appendUserMessage(text);
-      toggleRunningState(true);
+      updateStatus('running');
       showThinking();
-      ticker.innerText = "→ Analyzing intent...";
+      ui.ticker.innerText = "> Synthesizing neural plan...";
+
+      state.abortController = new AbortController();
 
       try {
         const response = await fetch('/api/v1/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: state.abortController.signal,
           body: JSON.stringify({
             message: text,
-            history: chatHistory,
-            session: { current_url: urlDisplay.innerText, browser_active: !statusDot.classList.contains('offline') }
+            history: state.history,
+            session: { current_url: ui.url.value }
           })
         });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
         const data = await response.json();
         removeThinking();
 
+        // Render Text
         if (data.type === 'text' || data.type === 'both') {
             if(data.content) appendNexusMessage(data.content);
         }
 
+        // Render Action Card
         if (data.type === 'action' || data.type === 'both') {
-            ticker.innerText = "→ Executing browser actions...";
+            ui.ticker.innerText = "> Executing CDP protocols...";
             if(data.steps) {
                 appendActionCard(data.steps);
-                // Update fake browser state for demo
+
+                // Update UI state based on steps
                 const navStep = data.steps.find(s => s.type === 'navigate');
-                if (navStep && navStep.url) {
-                    urlDisplay.innerText = navStep.url;
-                }
+                if (navStep && navStep.url) ui.url.value = navStep.url;
+
+                // Draw fake bounding boxes for visual effect
+                drawBoundingBoxes([{nexus_id:"search_btn"}, {nexus_id:"login_input"}, {nexus_id:"nav_link"}]);
             }
             if(data.message && data.type === 'action') appendNexusMessage(data.message);
         }
 
       } catch (err) {
+        if (err.name === 'AbortError') return;
         removeThinking();
-        appendSystemMessage("Error connecting to NEXUS backend: " + err.message);
+        appendSystemMessage("CRITICAL ERROR: Connection to Nexus Core lost. " + err.message);
+        updateStatus('offline');
       } finally {
-        toggleRunningState(false);
+        if(state.isRunning) updateStatus('idle'); // If not aborted
       }
     }
   </script>
