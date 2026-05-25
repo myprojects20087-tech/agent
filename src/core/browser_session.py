@@ -1,51 +1,60 @@
 import asyncio
-from playwright.async_api import async_playwright
+import subprocess
+import pychrome
+import time
 
 class BrowserSession:
     def __init__(self, agent):
         self.agent = agent
-        self.playwright = None
         self.browser = None
-        self.context = None
-        self.page = None
+        self.tab = None
+        self.process = None
 
     async def __aenter__(self):
-        print("[BrowserSession] Booting real Chromium instance via Playwright...")
-        self.playwright = await async_playwright().start()
+        print("[BrowserSession] Launching Google Chrome via subprocess for direct CDP control...")
 
-        # Apply anti-detection stealth flags natively available
-        self.browser = await self.playwright.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--disable-infobars"
-            ]
-        )
-        self.context = await self.browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            viewport={"width": 1280, "height": 800}
-        )
-        self.page = await self.context.new_page()
+        # Launch real chrome with debugging port, non-headless by default as per PRD
+        command = [
+            "google-chrome",
+            "--remote-debugging-port=9222",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-infobars",
+            "--disable-blink-features=AutomationControlled"
+        ]
 
-        # Override navigator.webdriver
-        await self.page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        # In this container environment, we'll try launching it, but fallback gracefully if missing
+        try:
+            self.process = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            await asyncio.sleep(2) # Wait for Chrome to boot
 
-        # Link the live page back to the agent's perception engine
-        self.agent.qpe.set_live_page(self.page)
-        self.agent.page = self.page # direct access for capabilities
+            self.browser = pychrome.Browser(url="http://127.0.0.1:9222")
+            self.tab = self.browser.new_tab()
+            self.tab.start()
+
+            # Setup network and page domains
+            self.tab.call_method("Network.enable")
+            self.tab.call_method("Page.enable")
+            self.tab.call_method("DOM.enable")
+            self.tab.call_method("Runtime.enable")
+
+            print("[BrowserSession] Connected to real Chrome via pychrome (CDP)")
+            self.agent.qpe.set_live_tab(self.tab)
+            self.agent.tab = self.tab # Provide access to capabilities
+
+        except FileNotFoundError:
+            print("[BrowserSession] ERROR: google-chrome not found on system. Ensure it is installed.")
+            # We don't crash, but pass a None tab to let the system mock gracefully if needed for tests
 
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
-        print("[BrowserSession] Shutting down browser instance.")
-        if self.page:
-            await self.page.close()
-        if self.context:
-            await self.context.close()
-        if self.browser:
-            await self.browser.close()
-        if self.playwright:
-            await self.playwright.stop()
+        print("[BrowserSession] Shutting down CDP browser instance.")
+        if self.tab:
+            self.tab.stop()
+            self.browser.close_tab(self.tab)
+        if self.process:
+            self.process.terminate()
 
     async def run(self, task: str):
         return await self.agent.run(task)

@@ -22,12 +22,12 @@ class NexusAgent:
         self.stealth = StealthCore()
         self.episodic_memory = EpisodicMemory()
 
-        self.page = None # Will be set by BrowserSession
+        self.tab = None # Will be set by BrowserSession
 
     async def run(self, task: str, options: Optional[Dict] = None) -> Dict[str, Any]:
         print(f"\n[NexusAgent] Engaging Real Task: {task}")
 
-        if not self.page:
+        if not self.tab:
             print("[NexusAgent] ERROR: No browser session active. Use 'async with agent.session():'")
             return {"status": "error"}
 
@@ -61,7 +61,7 @@ class NexusAgent:
                 break
 
             # 3. Real Execution
-            result = await CapabilityModules.execute_action(self.page, action_json_str)
+            result = await CapabilityModules.execute_action(self.tab, action_json_str)
             if result.get("status") == "error":
                 print(f"[NexusAgent] Action execution failed: {result}")
 
