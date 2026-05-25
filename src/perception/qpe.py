@@ -78,7 +78,7 @@ class DOMParser:
         }
         """
         try:
-            result = await asyncio.to_thread(self.tab.call_method, "Runtime.evaluate", expression=script, returnByValue=True)
+            result = await asyncio.wait_for(asyncio.to_thread(self.tab.call_method, "Runtime.evaluate", expression=script, returnByValue=True), timeout=10.0)
             raw_nodes = result.get("result", {}).get("value", [])
             nodes = []
             for n in raw_nodes:
@@ -105,12 +105,12 @@ class VLMGrounding:
 
         print("[QPE-L2] Capturing Annotated SoM Screenshot via Page.captureScreenshot...")
         try:
-            result = await asyncio.to_thread(self.tab.call_method, "Page.captureScreenshot", format="jpeg", quality=80)
+            result = await asyncio.wait_for(asyncio.to_thread(self.tab.call_method, "Page.captureScreenshot", format="jpeg", quality=80), timeout=10.0)
             b64_img = result.get("data", "")
 
             # Clean up SoM overlays after screenshot
             cleanup_script = "document.querySelectorAll('.nexus-som-overlay').forEach(e => e.remove());"
-            await asyncio.to_thread(self.tab.call_method, "Runtime.evaluate", expression=cleanup_script)
+            await asyncio.wait_for(asyncio.to_thread(self.tab.call_method, "Runtime.evaluate", expression=cleanup_script), timeout=10.0)
 
             return {"screenshot_b64": b64_img, "ready": True}
         except Exception as e:
@@ -128,7 +128,7 @@ class AccessibilityFusion:
              return {"a11y_tree": {}}
         print("[QPE-L3] Calling Accessibility.getFullAXTree natively...")
         try:
-            snapshot = await asyncio.to_thread(self.tab.call_method, "Accessibility.getFullAXTree")
+            snapshot = await asyncio.wait_for(asyncio.to_thread(self.tab.call_method, "Accessibility.getFullAXTree"), timeout=10.0)
             return {"a11y_tree": snapshot}
         except Exception as e:
             return {"a11y_tree": {}, "error": str(e)}
@@ -168,7 +168,7 @@ class QuadLayerPerceptionEngine:
              return {"url": "mock", "title": "mock"}
 
         try:
-            nav_history = await asyncio.to_thread(self.live_tab.call_method, "Page.getNavigationHistory")
+            nav_history = await asyncio.wait_for(asyncio.to_thread(self.live_tab.call_method, "Page.getNavigationHistory"), timeout=10.0)
             idx = nav_history.get("currentIndex", 0)
             entries = nav_history.get("entries", [])
             url = entries[idx]["url"] if entries else ""
