@@ -1,73 +1,73 @@
 import asyncio
+import json
 from typing import Dict, Any, Optional
 from src.perception.qpe import QuadLayerPerceptionEngine
 from src.agent.planner import NeuroSymbolicPlanner
 from src.evasion.stealth import StealthCore
 from src.memory.stores import EpisodicMemory, KnowledgeGraph
 from src.brain import BrainFactory
+from src.agent.capabilities_base import CapabilityModules
 
 class NexusAgent:
     def __init__(self, mode="distributed", profile: Optional[Dict] = None, brain_config: Optional[Dict] = None):
-        print(f"[NexusAgent] Initializing NEXUS-PRIME in {mode} mode")
+        print(f"[NexusAgent] Initializing Real NEXUS-PRIME in {mode} mode")
         self.mode = mode
         self.profile = profile or {}
 
-        # Initialize the Brain (Central Intelligence)
-        default_brain_config = {"type": "local", "model": "qwen2-vl-7b"}
+        default_brain_config = {"type": "api", "endpoint": "https://api.openai.com/v1/chat/completions"}
         self.brain = BrainFactory.get_brain(brain_config or default_brain_config)
 
         self.qpe = QuadLayerPerceptionEngine()
         self.planner = NeuroSymbolicPlanner(brain=self.brain)
         self.stealth = StealthCore()
         self.episodic_memory = EpisodicMemory()
-        self.knowledge_graph = KnowledgeGraph()
+
+        self.page = None # Will be set by BrowserSession
 
     async def run(self, task: str, options: Optional[Dict] = None) -> Dict[str, Any]:
-        print(f"\n[NexusAgent] Engaging Task: {task}")
+        print(f"\n[NexusAgent] Engaging Real Task: {task}")
 
-        # 1. Apply hardware/TLS forgery
-        self.stealth.apply_tls_spoof()
-        self.stealth.apply_webgl_forgery()
+        if not self.page:
+            print("[NexusAgent] ERROR: No browser session active. Use 'async with agent.session():'")
+            return {"status": "error"}
 
-        state_history = []
-        max_retries = 3
+        max_steps = 10
 
-        # RL-Optimized Execution Loop
-        for attempt in range(max_retries):
-            try:
-                # 2. Quad-Layer Perception
-                current_state = await self.qpe.perceive()
+        # Real Execution Loop
+        for step in range(max_steps):
+            print(f"\n--- Step {step + 1} ---")
 
-                # 3. MCTS-based Planning using the Brain
-                plan_trajectory = await self.planner.generate_plan(task, current_state)
-                print(f"[NexusAgent] Optimal Trajectory Selected: {plan_trajectory}")
+            # 1. Real Perception
+            current_state = await self.qpe.perceive()
 
-                # 4. Execution with Biometric Jitter
-                for action in plan_trajectory:
-                    print(f"[NexusAgent] Executing: {action} (applying Fitts's Law jitter)")
-                    await asyncio.sleep(0.15) # sub-200ms execution latency
+            # Condense the DOM for the LLM to fit in context window
+            dom_summary = [{"tag": n["tag"], "text": n["text"]} for n in current_state.get("dom", {}).get("nodes", [])[:20]]
 
-                # 5. Verification
-                post_state = await self.qpe.perceive()
-                reward = self._calculate_reward(current_state, post_state)
+            context = {
+                "url": current_state.get("url"),
+                "title": current_state.get("title"),
+                "visible_elements": dom_summary
+            }
 
-                # 6. Memory Storage
-                episode = {"task": task, "trajectory": plan_trajectory, "reward": reward}
-                self.episodic_memory.store(episode)
+            # 2. Real Brain Reasoning
+            prompt = f"Goal: {task}\nBased on the context, what is the single next JSON action to take? Format: {{\"type\": \"navigate/click/type\", \"selector/url\": \"...\", \"text\": \"...\"}}. If the goal is complete, return {{\"type\": \"done\"}}"
 
-                print("[NexusAgent] Task Execution Successful.")
-                return {"status": "success", "trajectory": plan_trajectory, "reward": reward}
+            print("[NexusAgent] Querying Brain for next action...")
+            action_json_str = await self.brain.reason(prompt, context=context)
+            print(f"[NexusAgent] Brain Decision: {action_json_str}")
 
-            except Exception as e:
-                print(f"[NexusAgent] Attempt {attempt+1} Failed: {e}. Micro-rollback initiated.")
-                self.stealth.cycle_fingerprint()
-                await asyncio.sleep(0.5)
+            if "done" in action_json_str.lower():
+                print("[NexusAgent] Task reported complete by Brain.")
+                break
 
-        return {"status": "failed", "reason": "Max retries exceeded on WAF block"}
+            # 3. Real Execution
+            result = await CapabilityModules.execute_action(self.page, action_json_str)
+            if result.get("status") == "error":
+                print(f"[NexusAgent] Action execution failed: {result}")
 
-    def _calculate_reward(self, pre_state: Dict, post_state: Dict) -> float:
-        # Complex delta comparison to gauge success
-        return 0.95
+            await asyncio.sleep(1) # Pace the loop
+
+        return {"status": "success", "task": task}
 
     def session(self):
         from .browser_session import BrowserSession

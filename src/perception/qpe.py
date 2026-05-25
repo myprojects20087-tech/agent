@@ -1,48 +1,105 @@
 import asyncio
 import hashlib
+from playwright.async_api import Page
+import base64
 
 class DOMParser:
+    def __init__(self):
+        self.page: Page = None
+
+    def set_page(self, page: Page):
+        self.page = page
+
     async def parse(self):
-        print("[QPE-L1] Running Neuro-Semantic DOM Parser...")
-        await asyncio.sleep(0.02) # ~20ms latency
-        # Mocking local SLM DOM classification
-        nodes = [
-            {"nexus_id": self._hash_node("button", "Submit", "x:100,y:200"), "role": "button", "text": "Submit", "bbox": [100, 200, 150, 230]},
-            {"nexus_id": self._hash_node("input", "Email", "x:100,y:150"), "role": "input", "placeholder": "Email", "bbox": [100, 150, 300, 180]}
-        ]
-        return {"nodes": nodes, "obfuscation_bypassed": True}
+        if not self.page:
+            return {"nodes": [], "error": "No live page attached"}
+
+        print("[QPE-L1] Executing real JS to extract live DOM semantic tree...")
+        script = """
+        () => {
+            const interactables = Array.from(document.querySelectorAll('button, a, input, select, textarea, [role="button"]'));
+            return interactables.filter(el => {
+                const rect = el.getBoundingClientRect();
+                return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
+            }).map(el => {
+                const rect = el.getBoundingClientRect();
+                return {
+                    tag: el.tagName.toLowerCase(),
+                    text: el.innerText || el.value || el.placeholder || '',
+                    x: Math.round(rect.x),
+                    y: Math.round(rect.y),
+                    width: Math.round(rect.width),
+                    height: Math.round(rect.height)
+                };
+            });
+        }
+        """
+        try:
+            raw_nodes = await self.page.evaluate(script)
+            nodes = []
+            for n in raw_nodes:
+                nid = self._hash_node(n['tag'], n['text'], f"{n['x']},{n['y']}")
+                n["nexus_id"] = nid
+                nodes.append(n)
+            return {"nodes": nodes, "count": len(nodes)}
+        except Exception as e:
+            return {"nodes": [], "error": str(e)}
 
     def _hash_node(self, tag, text, position):
         return hashlib.sha256(f"{tag}-{text}-{position}".encode()).hexdigest()[:12]
 
 class VLMGrounding:
+    def __init__(self):
+        self.page: Page = None
+
+    def set_page(self, page: Page):
+        self.page = page
+
     async def ground(self):
-        print("[QPE-L2] Executing Sub-Pixel Visual Grounding (TensorRT)...")
-        await asyncio.sleep(0.08) # ~80ms latency
-        # Mocking Set-of-Marks visual extraction
-        return {
-            "visual_elements": [{"nexus_id": "8a3b2c1d9e", "confidence": 0.98}],
-            "canvas_read": True
-        }
+        if not self.page:
+            return {"visual_elements": [], "error": "No live page attached"}
+
+        print("[QPE-L2] Capturing real viewport screenshot for VLM Grounding...")
+        try:
+            screenshot_bytes = await self.page.screenshot(type="jpeg", quality=75)
+            b64_img = base64.b64encode(screenshot_bytes).decode('utf-8')
+            return {"screenshot_b64": b64_img[:50] + "...(truncated)", "ready": True}
+        except Exception as e:
+            return {"error": str(e)}
 
 class AccessibilityFusion:
+    def __init__(self):
+        self.page: Page = None
+
+    def set_page(self, page: Page):
+        self.page = page
+
     async def extract(self):
-        print("[QPE-L3] Extracting Deep Accessibility & Shadow Trees via CDP bypass...")
-        await asyncio.sleep(0.01)
-        return {
-            "a11y_tree": {"root": {"role": "WebArea", "children": []}},
-            "shadow_doms_unrolled": 3
-        }
+        if not self.page:
+             return {"a11y_tree": {}}
+        print("[QPE-L3] Extracting native A11y tree snapshot...")
+        try:
+            snapshot = await self.page.accessibility.snapshot()
+            return {"a11y_tree": snapshot}
+        except Exception:
+            return {"a11y_tree": {}}
 
 class TemporalBehavioralEngine:
+    def __init__(self):
+        self.page: Page = None
+
+    def set_page(self, page: Page):
+        self.page = page
+
     async def analyze(self):
-        print("[QPE-L4] Analyzing Temporal Context (Mutations/XHR/Event Loop)...")
-        await asyncio.sleep(0.03)
-        return {
-            "is_stable": True,
-            "network_idle": True,
-            "pending_promises": 0
-        }
+        if not self.page:
+            return {"is_stable": True}
+        print("[QPE-L4] Waiting for network idle state...")
+        try:
+            await self.page.wait_for_load_state("networkidle", timeout=2000)
+            return {"is_stable": True, "network_idle": True}
+        except:
+            return {"is_stable": False, "network_idle": False}
 
 class QuadLayerPerceptionEngine:
     def __init__(self):
@@ -50,10 +107,21 @@ class QuadLayerPerceptionEngine:
         self.vlm_grounding = VLMGrounding()
         self.a11y_fusion = AccessibilityFusion()
         self.temporal_engine = TemporalBehavioralEngine()
+        self.live_page = None
+
+    def set_live_page(self, page: Page):
+        self.live_page = page
+        self.dom_parser.set_page(page)
+        self.vlm_grounding.set_page(page)
+        self.a11y_fusion.set_page(page)
+        self.temporal_engine.set_page(page)
 
     async def perceive(self):
-        print("\n[QPE] Initiating 120Hz Synchronized State Fusion...")
-        # Gather all states concurrently for ultra-low latency
+        print("\n[QPE] Initiating Live Perception Cycle on Page...")
+        if not self.live_page:
+             print("[QPE] Error: No page bound to perception engine.")
+             return {}
+
         dom, vis, a11y, temp = await asyncio.gather(
             self.dom_parser.parse(),
             self.vlm_grounding.ground(),
@@ -61,17 +129,11 @@ class QuadLayerPerceptionEngine:
             self.temporal_engine.analyze()
         )
 
-        confidence = self._fuse_confidence(dom, vis, a11y)
-        print(f"[QPE] State Fusion Complete. Confidence: {confidence:.2f}")
-
         return {
+            "url": self.live_page.url,
+            "title": await self.live_page.title(),
             "dom": dom,
             "visual": vis,
             "a11y": a11y,
             "temporal": temp,
-            "fusion_confidence": confidence
         }
-
-    def _fuse_confidence(self, dom, vis, a11y) -> float:
-        # Weighted probabilistic fusion logic
-        return 0.96
